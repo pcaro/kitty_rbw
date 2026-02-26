@@ -2,6 +2,8 @@
 
 A [kitty](https://sw.kovidgoyal.net/kitty/) kitten to quickly search and use [rbw](https://github.com/doy/rbw) (unofficial Bitwarden CLI) credentials directly from the terminal.
 
+![kitty_rbw screenshot](screenshot.png)
+
 ## Features
 
 - **Fuzzy search** through your vault using `fzf` — searches by name, username and folder simultaneously.
