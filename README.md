@@ -14,6 +14,7 @@ A [kitty](https://sw.kovidgoyal.net/kitty/) kitten to quickly search and use [rb
 - **Folder shortcuts**: launch the kitten pre-filtered to a specific folder via `kitty.conf` arguments.
 - **Duplicate-safe**: internally uses UUIDs, so entries with the same name are always resolved correctly.
 - **Sync**: refresh your local vault without leaving the kitten.
+- **Environment export**: select a folder and export all its secrets as environment variables into your active shell (`rbw_env.py`).
 
 ## Requirements
 
@@ -62,6 +63,29 @@ map kitty_mod+shift+t kitten kitty_rbw/rbw.py terminal
 ```
 
 The folder name is case-insensitive.
+
+### Environment Export (`rbw_env.py`)
+
+This tool allows you to select a Bitwarden folder and export all its entries as environment variables into your current shell. The variable name is derived from the entry's username (sanitized to be a valid bash variable).
+
+**As a Kitty Kitten:**
+Map it in your `kitty.conf` to type the `export` commands directly into your active window:
+```
+map kitty_mod+e kitten kitty_rbw/rbw_env.py
+```
+
+**As a Standalone Script:**
+You can run it in any terminal to evaluate the exports:
+```bash
+eval $(python ~/.config/kitty/kitty_rbw/rbw_env.py)
+```
+Or pass a folder name directly to skip the interactive selection:
+```bash
+eval $(python ~/.config/kitty/kitty_rbw/rbw_env.py my_folder)
+```
+
+**Folder Exclusions:**
+You can hide specific folders from the interactive `fzf` picker by creating a file at `~/.config/kitty_rbw/excluded_folders.txt` and listing the folder names to exclude (one per line, case-insensitive). Entries with the name or username `NOEXPORT` are always ignored.
 
 ## Usage history
 
