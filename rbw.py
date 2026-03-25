@@ -21,18 +21,20 @@ def build_header(folder: str | None) -> str:
         return f"\n  Carpeta: {folder}" + HEADER_BASE
     return HEADER_BASE
 
+
 FZF_EXPECT = "enter,ctrl-u,ctrl-b,ctrl-t,alt-p,alt-u,alt-s"
 
-DIM   = "\033[2m"
-CYAN  = "\033[36m"
-BOLD  = "\033[1m"
+DIM = "\033[2m"
+CYAN = "\033[36m"
+BOLD = "\033[1m"
 RESET = "\033[0m"
-SEP   = f"{DIM}{'─' * 40}{RESET}"  # separador visual entre top y resto
+SEP = f"{DIM}{'─' * 40}{RESET}"  # separador visual entre top y resto
 
 
 # ---------------------------------------------------------------------------
 # Historial de uso
 # ---------------------------------------------------------------------------
+
 
 def load_usage() -> dict:
     try:
@@ -65,6 +67,7 @@ def record_usage(entry_id: str) -> None:
 # rbw helpers
 # ---------------------------------------------------------------------------
 
+
 def get_env() -> dict:
     env = os.environ.copy()
     home = os.path.expanduser("~")
@@ -77,7 +80,9 @@ def get_env() -> dict:
 def load_entries(env: dict) -> list[dict] | None:
     proc = subprocess.run(
         ["rbw", "list", "--fields", "id,name,user,folder"],
-        text=True, capture_output=True, env=env,
+        text=True,
+        capture_output=True,
+        env=env,
     )
     if proc.returncode != 0:
         print(f"Error rbw list: {proc.stderr.strip()}")
@@ -89,18 +94,21 @@ def load_entries(env: dict) -> list[dict] | None:
         if not line:
             continue
         parts = line.split("\t")
-        entries.append({
-            "id":     parts[0] if len(parts) > 0 else "",
-            "name":   parts[1] if len(parts) > 1 else "",
-            "user":   parts[2] if len(parts) > 2 else "",
-            "folder": parts[3] if len(parts) > 3 else "",
-        })
+        entries.append(
+            {
+                "id": parts[0] if len(parts) > 0 else "",
+                "name": parts[1] if len(parts) > 1 else "",
+                "user": parts[2] if len(parts) > 2 else "",
+                "folder": parts[3] if len(parts) > 3 else "",
+            }
+        )
     return entries
 
 
 # ---------------------------------------------------------------------------
 # Construcción del listado para fzf
 # ---------------------------------------------------------------------------
+
 
 def sort_entries(entries: list[dict], usage: dict) -> tuple[list[dict], list[dict]]:
     """
@@ -112,14 +120,14 @@ def sort_entries(entries: list[dict], usage: dict) -> tuple[list[dict], list[dic
     used.sort(key=lambda x: (-x[1]["count"], -x[1]["last"]))
 
     top_ids = {e["id"] for e, _ in used[:TOP_N]}
-    top  = [e for e, _ in used[:TOP_N]]
+    top = [e for e, _ in used[:TOP_N]]
     rest = [e for e in entries if e["id"] not in top_ids]
     return top, rest
 
 
 def entry_to_display(e: dict) -> str:
-    user_str   = f"  {DIM}{e['user']}{RESET}"                if e["user"]   else ""
-    folder_str = f"  {CYAN}{DIM}[{e['folder']}]{RESET}"      if e["folder"] else ""
+    user_str = f"  {DIM}{e['user']}{RESET}" if e["user"] else ""
+    folder_str = f"  {CYAN}{DIM}[{e['folder']}]{RESET}" if e["folder"] else ""
     return f"{e['name']}{user_str}{folder_str}"
 
 
@@ -149,15 +157,20 @@ def build_fzf_lines(entries: list[dict], usage: dict) -> list[str]:
 # fzf
 # ---------------------------------------------------------------------------
 
-def run_fzf(fzf_lines: list[str], env: dict, folder: str | None = None) -> tuple[str, str] | None:
+
+def run_fzf(
+    fzf_lines: list[str], env: dict, folder: str | None = None
+) -> tuple[str, str] | None:
     fzf_cmd = [
         "fzf",
         "--ansi",
         "--delimiter=\t",
-        "--with-nth=2",        # mostrar solo el campo display (oculta el UUID)
-        "--nth=1,2",           # buscar también en UUID y display
-        "--header", build_header(folder),
-        "--expect", FZF_EXPECT,
+        "--with-nth=2",  # mostrar solo el campo display (oculta el UUID)
+        "--nth=1,2",  # buscar también en UUID y display
+        "--header",
+        build_header(folder),
+        "--expect",
+        FZF_EXPECT,
         "--layout=reverse",
         "--height=60%",
         "--min-height=20",
@@ -193,8 +206,9 @@ def extract_id(selected_raw: str) -> str:
 # Kitten entrypoints
 # ---------------------------------------------------------------------------
 
+
 def main(args: list[str]) -> dict | None:
-    env    = get_env()
+    env = get_env()
     folder = args[1] if len(args) > 1 else None
 
     entries = load_entries(env)
@@ -230,7 +244,9 @@ def main(args: list[str]) -> dict | None:
         # Sync
         if key == "alt-s":
             print("Sincronizando bóveda...")
-            sync = subprocess.run(["rbw", "sync"], text=True, capture_output=True, env=env)
+            sync = subprocess.run(
+                ["rbw", "sync"], text=True, capture_output=True, env=env
+            )
             if sync.returncode != 0:
                 print(f"Error: {sync.stderr.strip()}")
                 input("Presiona Enter para continuar...")
@@ -247,17 +263,24 @@ def main(args: list[str]) -> dict | None:
         try:
             if key in ("enter", "ctrl-b", "alt-p"):
                 payload["password"] = subprocess.check_output(
-                    ["rbw", "get", entry_id], text=True, env=env,
+                    ["rbw", "get", entry_id],
+                    text=True,
+                    env=env,
                 ).strip()
 
             if key in ("ctrl-u", "ctrl-b", "alt-u"):
                 payload["username"] = subprocess.check_output(
-                    ["rbw", "get", "--field", "username", entry_id], text=True, env=env,
+                    ["rbw", "get", "--field", "username", entry_id],
+                    text=True,
+                    env=env,
                 ).strip()
 
             if key == "ctrl-t":
                 totp = subprocess.run(
-                    ["rbw", "code", entry_id], text=True, capture_output=True, env=env,
+                    ["rbw", "code", entry_id],
+                    text=True,
+                    capture_output=True,
+                    env=env,
                 )
                 if totp.returncode != 0:
                     print("Esta entrada no tiene TOTP.")
@@ -288,10 +311,10 @@ def handle_result(
     if window is None:
         return
 
-    action   = result.get("action", "")
+    action = result.get("action", "")
     password = result.get("password", "")
     username = result.get("username", "")
-    totp     = result.get("totp", "")
+    totp = result.get("totp", "")
 
     if action == "enter":
         window.paste_text(password)

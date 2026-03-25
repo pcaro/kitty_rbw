@@ -5,13 +5,14 @@ import sys
 from typing import Any
 
 # Reuse some logic/style from rbw.py
-DIM   = "\033[2m"
-CYAN  = "\033[36m"
-BOLD  = "\033[1m"
+DIM = "\033[2m"
+CYAN = "\033[36m"
+BOLD = "\033[1m"
 RESET = "\033[0m"
 
 CONFIG_DIR = os.path.expanduser("~/.config/kitty_rbw")
 EXCLUDED_FOLDERS_FILE = os.path.join(CONFIG_DIR, "excluded_folders.txt")
+
 
 def get_env() -> dict:
     env = os.environ.copy()
@@ -21,14 +22,18 @@ def get_env() -> dict:
             env["PATH"] = p + os.pathsep + env.get("PATH", "")
     return env
 
+
 def sanitize_name(name: str) -> str:
     # Equivalent to ${username//[^a-zA-Z0-9_]/_}
-    return re.sub(r'[^a-zA-Z0-9_]', '_', name)
+    return re.sub(r"[^a-zA-Z0-9_]", "_", name)
+
 
 def load_folders(env: dict) -> list[str]:
     proc = subprocess.run(
         ["rbw", "list", "--fields", "folder"],
-        text=True, capture_output=True, env=env,
+        text=True,
+        capture_output=True,
+        env=env,
     )
     if proc.returncode != 0:
         return []
@@ -39,10 +44,12 @@ def load_folders(env: dict) -> list[str]:
             excluded = {line.strip().lower() for line in f if line.strip()}
 
     folders = {
-        line.strip() for line in proc.stdout.splitlines()
+        line.strip()
+        for line in proc.stdout.splitlines()
         if line.strip() and line.strip().lower() not in excluded
     }
     return sorted(list(folders))
+
 
 def run_fzf(options: list[str], env: dict) -> str | None:
     fzf_cmd = [
@@ -50,7 +57,8 @@ def run_fzf(options: list[str], env: dict) -> str | None:
         "--ansi",
         "--layout=reverse",
         "--height=40%",
-        "--header", "\n  Select folder to export as environment variables\n",
+        "--header",
+        "\n  Select folder to export as environment variables\n",
     ]
     try:
         proc = subprocess.Popen(
@@ -65,6 +73,7 @@ def run_fzf(options: list[str], env: dict) -> str | None:
     except FileNotFoundError:
         print("Error: 'fzf' not found in PATH.", file=sys.stderr)
         return None
+
 
 def main(args: list[str]) -> list[dict[str, str]] | None:
     env = get_env()
@@ -89,7 +98,9 @@ def main(args: list[str]) -> list[dict[str, str]] | None:
     # Load entries in folder
     proc = subprocess.run(
         ["rbw", "list", "--fields", "id,name,user,folder"],
-        text=True, capture_output=True, env=env,
+        text=True,
+        capture_output=True,
+        env=env,
     )
     if proc.returncode != 0:
         print(f"Error: {proc.stderr.strip()}", file=sys.stderr)
@@ -99,9 +110,11 @@ def main(args: list[str]) -> list[dict[str, str]] | None:
 
     results = []
     for line in proc.stdout.splitlines():
-        if not line: continue
+        if not line:
+            continue
         parts = line.split("\t")
-        if len(parts) < 4: continue
+        if len(parts) < 4:
+            continue
 
         eid, name, user, f = parts[0], parts[1], parts[2], parts[3]
 
@@ -117,11 +130,9 @@ def main(args: list[str]) -> list[dict[str, str]] | None:
                     ["rbw", "get", eid], text=True, env=env
                 ).strip()
 
-                results.append({
-                    "var": sanitize_name(user),
-                    "val": password,
-                    "name": name
-                })
+                results.append(
+                    {"var": sanitize_name(user), "val": password, "name": name}
+                )
                 if sys.stdin.isatty():
                     print(f"✅ Prepared {name} ({user})", file=sys.stderr)
             except subprocess.CalledProcessError:
@@ -136,6 +147,7 @@ def main(args: list[str]) -> list[dict[str, str]] | None:
 
     return results
 
+
 def handle_result(
     args: list[str],
     result: list[dict[str, str]] | None,
@@ -149,14 +161,25 @@ def handle_result(
     if window is None:
         return
 
+    import tempfile
+
     exports = []
     for entry in result:
         var = entry["var"]
         val = entry["val"].replace("'", "'\\''")
-        exports.append(f"{var}='{val}'")
+        exports.append(f"export {var}='{val}'")
 
-    cmd = "export " + " ".join(exports) + "\n"
+    # Write to a secure temporary file to hide secrets from the screen
+    fd, path = tempfile.mkstemp(prefix="kitty_rbw_env_")
+    with os.fdopen(fd, "w") as f:
+        f.write("\n".join(exports) + "\n")
+        # Ensure the file deletes itself after sourcing
+        f.write(f"rm -f {path}\n")
+
+    # Send command with leading space to avoid shell history
+    cmd = f" source {path}\n"
     window.write_to_child(cmd)
+
 
 if __name__ == "__main__":
     res = main(sys.argv)
