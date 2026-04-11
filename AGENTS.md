@@ -9,9 +9,10 @@ This project follows a structured approach for AI agents to ensure consistency, 
 - **Python Style:** Follow PEP 8 standards. Use type hints where possible.
 - **Language:** Documentation and commits should be in English, but blog-related notes (if applicable) follow the bilingual (ES/EN) rule defined in `.gemini/GEMINI.md`.
 
-## Workflows
+## Scripts
 
-1. **Research:** Understand the current `rbw` integration in `rbw.py`.
-2. **Strategy:** Propose changes that maintain the lightweight nature of the tool.
-3. **Execution:** Apply surgical changes and verify with manual or automated tests.
-4. **Validation:** Ensure the script still integrates correctly with `kitty`'s kitten framework.
+### rbw.py
+Main kitten for interactive credential selection. Provides a fuzzy-searchable list of all vault entries with keyboard shortcuts for copying passwords, usernames, TOTP codes, or auto-typing credentials into the terminal.
+
+### rbw_env.py
+Kitten for bulk-exporting credentials as environment variables. Select a folder and it exports all entries (using username as variable name, password as value) directly into the shell environment via a temporary file that self-destructs after sourcing. Displays the list of exported variable names after loading.

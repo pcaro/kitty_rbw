@@ -177,8 +177,12 @@ def handle_result(
         f.write(f"rm -f {path}\n")
 
     # Send command with leading space to avoid shell history
-    cmd = f" source {path}\n"
+    cmd = f"\nsource {path}\n"
     window.write_to_child(cmd)
+
+    # Show exported variable names as a comment (with leading space to avoid history)
+    var_list = " ".join(entry["var"] for entry in result)
+    window.write_to_child(f" # Exported: {var_list}\n")
 
 
 if __name__ == "__main__":
