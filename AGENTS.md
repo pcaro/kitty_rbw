@@ -15,4 +15,4 @@ This project follows a structured approach for AI agents to ensure consistency, 
 Main kitten for interactive credential selection. Provides a fuzzy-searchable list of all vault entries with keyboard shortcuts for copying passwords, usernames, TOTP codes, or auto-typing credentials into the terminal.
 
 ### rbw_env.py
-Kitten for bulk-exporting credentials as environment variables. Select a folder and it exports all entries (using username as variable name, password as value) directly into the shell environment via a temporary file that self-destructs after sourcing. Displays the list of exported variable names after loading.
+Kitten for bulk-exporting credentials as environment variables. Select a folder and it exports all entries (using username as variable name, password as value) directly into the shell environment via a temporary file that self-destructs after sourcing. Displays the list of exported variable names after loading. Additionally, it exports `RBW_ENV_LOADED` with the current local timestamp in ISO 8601 format, allowing detection of active credential sessions.

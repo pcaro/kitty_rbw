@@ -3,6 +3,7 @@ import re
 import subprocess
 import sys
 from typing import Any
+import datetime
 
 # Reuse some logic/style from rbw.py
 DIM = "\033[2m"
@@ -163,7 +164,9 @@ def handle_result(
 
     import tempfile
 
-    exports = []
+    timestamp = datetime.datetime.now().astimezone().isoformat()
+
+    exports = [f"export RBW_ENV_LOADED='{timestamp}'"]
     for entry in result:
         var = entry["var"]
         val = entry["val"].replace("'", "'\\''")
@@ -188,6 +191,8 @@ def handle_result(
 if __name__ == "__main__":
     res = main(sys.argv)
     if res:
+        timestamp = datetime.datetime.now().astimezone().isoformat()
+        print(f"export RBW_ENV_LOADED='{timestamp}'")
         for entry in res:
             var = entry["var"]
             val = entry["val"].replace("'", "'\\''")
