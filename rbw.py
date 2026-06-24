@@ -71,7 +71,7 @@ def record_usage(entry_id: str) -> None:
 def get_env() -> dict:
     env = os.environ.copy()
     home = os.path.expanduser("~")
-    for p in [os.path.join(home, ".local/bin"), "/usr/local/bin", "/usr/bin"]:
+    for p in [os.path.join(home, ".local/bin"), "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"]:
         if p not in env.get("PATH", ""):
             env["PATH"] = p + os.pathsep + env.get("PATH", "")
     return env
