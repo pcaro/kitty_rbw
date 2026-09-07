@@ -1,9 +1,9 @@
+import datetime
 import os
 import re
 import subprocess
 import sys
-from typing import Any
-import datetime
+import tempfile
 
 # Reuse some logic/style from rbw.py
 DIM = "\033[2m"
@@ -18,7 +18,7 @@ EXCLUDED_FOLDERS_FILE = os.path.join(CONFIG_DIR, "excluded_folders.txt")
 def get_env() -> dict:
     env = os.environ.copy()
     home = os.path.expanduser("~")
-    for p in [os.path.join(home, ".local/bin"), "/usr/local/bin", "/usr/bin"]:
+    for p in [os.path.join(home, ".local/bin"), "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"]:
         if p not in env.get("PATH", ""):
             env["PATH"] = p + os.pathsep + env.get("PATH", "")
     return env
@@ -146,7 +146,68 @@ def main(args: list[str]) -> list[dict[str, str]] | None:
             input("Press Enter to close...")
         return None
 
+    # When run as `kitten rbw_env.py` from the shell, kitty runs main() but
+    # never calls handle_result(), so inject the `source` command ourselves.
+    if _is_kitten_cli(env):
+        _inject_into_shell(results, env)
+
     return results
+
+
+def build_export_script(result: list[dict[str, str]]) -> str:
+    timestamp = datetime.datetime.now().astimezone().isoformat()
+
+    exports = [f"export RBW_ENV_LOADED='{timestamp}'"]
+    for entry in result:
+        var = entry["var"]
+        val = entry["val"].replace("'", "'\\''")
+        exports.append(f"export {var}='{val}'")
+
+    # Write to a temporary file to hide secrets from the screen
+    fd, path = tempfile.mkstemp(prefix="kitty_rbw_env_")
+    with os.fdopen(fd, "w") as f:
+        f.write("\n".join(exports) + "\n")
+        # Ensure the file deletes itself after sourcing
+        f.write(f"rm -f {path}\n")
+
+    return path
+
+
+def _is_kitten_cli(env: dict) -> bool:
+    # True when run as `kitten rbw_env.py` from a shell inside kitty. Overlay
+    # kittens have KITTY_CHILD_PID set, and plain `eval $(python ...)` pipes
+    # stdout, so both are excluded.
+    return (
+        "KITTY_WINDOW_ID" in env
+        and "KITTY_CHILD_PID" not in env
+        and sys.stdout.isatty()
+    )
+
+
+def _inject_into_shell(result: list[dict[str, str]], env: dict) -> None:
+    listen = env.get("KITTY_LISTEN_ON")
+    window_id = env.get("KITTY_WINDOW_ID")
+    if not listen or not window_id:
+        print("Error: not running inside kitty.", file=sys.stderr)
+        return
+
+    path = build_export_script(result)
+
+    proc = subprocess.run(
+        [
+            "kitten", "@", "--to", listen, "send-text",
+            "--stdin", "--match", f"id:{window_id}",
+        ],
+        input=f"\nsource {path}\n",
+        text=True,
+        capture_output=True,
+        env=env,
+    )
+    if proc.returncode != 0:
+        print(
+            f"Error: could not inject into shell: {proc.stderr.strip()}",
+            file=sys.stderr,
+        )
 
 
 def handle_result(
@@ -162,22 +223,7 @@ def handle_result(
     if window is None:
         return
 
-    import tempfile
-
-    timestamp = datetime.datetime.now().astimezone().isoformat()
-
-    exports = [f"export RBW_ENV_LOADED='{timestamp}'"]
-    for entry in result:
-        var = entry["var"]
-        val = entry["val"].replace("'", "'\\''")
-        exports.append(f"export {var}='{val}'")
-
-    # Write to a secure temporary file to hide secrets from the screen
-    fd, path = tempfile.mkstemp(prefix="kitty_rbw_env_")
-    with os.fdopen(fd, "w") as f:
-        f.write("\n".join(exports) + "\n")
-        # Ensure the file deletes itself after sourcing
-        f.write(f"rm -f {path}\n")
+    path = build_export_script(result)
 
     # Send command with leading space to avoid shell history
     cmd = f"\nsource {path}\n"
