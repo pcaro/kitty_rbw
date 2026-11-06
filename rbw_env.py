@@ -29,6 +29,15 @@ def sanitize_name(name: str) -> str:
     return re.sub(r"[^a-zA-Z0-9_]", "_", name)
 
 
+def load_excluded_folders() -> set[str]:
+    """Lowercased folder names hidden from the picker. A missing file means no exclusions."""
+    try:
+        with open(EXCLUDED_FOLDERS_FILE) as f:
+            return {line.strip().lower() for line in f if line.strip()}
+    except OSError:
+        return set()
+
+
 def load_folders(env: dict) -> list[str]:
     proc = subprocess.run(
         ["rbw", "list", "--fields", "folder"],
@@ -39,17 +48,14 @@ def load_folders(env: dict) -> list[str]:
     if proc.returncode != 0:
         return []
 
-    excluded = set()
-    if os.path.exists(EXCLUDED_FOLDERS_FILE):
-        with open(EXCLUDED_FOLDERS_FILE, "r") as f:
-            excluded = {line.strip().lower() for line in f if line.strip()}
+    excluded = load_excluded_folders()
 
     folders = {
         line.strip()
         for line in proc.stdout.splitlines()
         if line.strip() and line.strip().lower() not in excluded
     }
-    return sorted(list(folders))
+    return sorted(folders)
 
 
 def run_fzf(options: list[str], env: dict) -> str | None:
@@ -167,6 +173,11 @@ def build_export_script(result: list[dict[str, str]]) -> str:
     fd, path = tempfile.mkstemp(prefix="kitty_rbw_env_")
     with os.fdopen(fd, "w") as f:
         f.write("\n".join(exports) + "\n")
+        # Report what was loaded from inside the script: a `#` comment typed
+        # into an interactive zsh is not a comment unless INTERACTIVE_COMMENTS
+        # is set, and fails with "command not found: #".
+        var_list = " ".join(entry["var"] for entry in result)
+        f.write(f'echo "Exported: {var_list}"\n')
         # Ensure the file deletes itself after sourcing
         f.write(f"rm -f {path}\n")
 
@@ -228,10 +239,6 @@ def handle_result(
     # Send command with leading space to avoid shell history
     cmd = f"\nsource {path}\n"
     window.write_to_child(cmd)
-
-    # Show exported variable names as a comment (with leading space to avoid history)
-    var_list = " ".join(entry["var"] for entry in result)
-    window.write_to_child(f" # Exported: {var_list}\n")
 
 
 if __name__ == "__main__":
